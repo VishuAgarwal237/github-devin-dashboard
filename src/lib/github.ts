@@ -23,6 +23,7 @@ export async function fetchIssues(repo: string): Promise<GitHubIssue[]> {
   console.log(`[GitHub] Auth: ${token ? "Bearer ***" + token.slice(-4) : "none"}`);
 
   const response = await fetch(url, {
+    cache: "no-store",
     headers: {
       Accept: "application/vnd.github.v3+json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

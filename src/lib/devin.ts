@@ -41,6 +41,7 @@ export async function createSession(params: {
 
   const response = await fetch(url, {
     method: "POST",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${getApiKey()}`,
@@ -56,6 +57,7 @@ export async function getSession(sessionId: string): Promise<DevinSession> {
   console.log(`[Devin] GET ${url}`);
 
   const response = await fetch(url, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${getApiKey()}`,
     },
@@ -74,6 +76,7 @@ export async function sendMessage(
 
   const response = await fetch(url, {
     method: "POST",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${getApiKey()}`,

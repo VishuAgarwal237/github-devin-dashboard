@@ -165,7 +165,9 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           }
           const data = await res.json();
           onUpdate(data);
-          if (data.status === "stopped") {
+          // Stop polling when session is no longer active
+          const terminalStatuses = ["stopped", "finished", "expired"];
+          if (terminalStatuses.includes(data.status)) {
             clearInterval(timer);
           }
         } catch {
@@ -215,13 +217,13 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           // 1. Session has stopped (Devin finished) and we have any output
           // 2. Output status is explicitly "scoped" or "needs_clarification"
           // 3. Session has stopped even without output (error)
+          const sessionDone = ["stopped", "finished", "expired"].includes(data.status);
+
           if (output) {
             const scopingFinished =
-              data.status === "stopped" ||
+              sessionDone ||
               output.status === "scoped" ||
-              output.status === "needs_clarification" ||
-              // Also accept if we have a confidence score and the session is done working
-              (output.confidence_score > 0 && data.status === "stopped");
+              output.status === "needs_clarification";
 
             if (scopingFinished) {
               setScoping({ phase: "done", output, sessionUrl: data.url ?? url });
@@ -229,8 +231,8 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
             }
           }
 
-          if (data.status === "stopped" && !output) {
-            setScoping({ phase: "error", message: "Session stopped without producing scoping results. Check the Devin session for details." });
+          if (sessionDone && !output) {
+            setScoping({ phase: "error", message: "Session finished without producing scoping results. Check the Devin session for details." });
             if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
           }
         },
@@ -278,9 +280,11 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         (data) => {
           const output = parseExecutionOutput(data.structured_output);
 
+          const sessionDone = ["stopped", "finished", "expired"].includes(data.status);
+
           if (output) {
             const executionFinished =
-              data.status === "stopped" ||
+              sessionDone ||
               output.status === "pr_created" ||
               output.status === "failed";
 
@@ -290,8 +294,8 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
             }
           }
 
-          if (data.status === "stopped" && !output) {
-            setExecution({ phase: "error", message: "Session stopped without producing execution results. Check the Devin session for details." });
+          if (sessionDone && !output) {
+            setExecution({ phase: "error", message: "Session finished without producing execution results. Check the Devin session for details." });
             if (executionTimerRef.current) clearInterval(executionTimerRef.current);
           }
         },

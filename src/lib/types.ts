@@ -41,7 +41,7 @@ export interface ExecutionOutput {
 
 export interface DevinSession {
   session_id: string;
-  status_enum: "working" | "blocked" | "stopped";
+  status_enum: "working" | "blocked" | "stopped" | "finished" | "expired";
   structured_output: ScopingOutput | ExecutionOutput | null;
   url: string;
   title: string;

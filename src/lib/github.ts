@@ -1,5 +1,20 @@
 import { GitHubIssue } from "@/lib/types";
 
+export class GitHubRateLimitError extends Error {
+  remaining: number;
+  resetAt: Date;
+
+  constructor(remaining: number, resetTimestamp: number) {
+    const resetAt = new Date(resetTimestamp * 1000);
+    super(
+      `GitHub API rate limit exceeded. Remaining: ${remaining}. Resets at ${resetAt.toISOString()}.`
+    );
+    this.name = "GitHubRateLimitError";
+    this.remaining = remaining;
+    this.resetAt = resetAt;
+  }
+}
+
 export async function fetchIssues(repo: string): Promise<GitHubIssue[]> {
   const token = process.env.GITHUB_TOKEN;
 
@@ -12,6 +27,27 @@ export async function fetchIssues(repo: string): Promise<GitHubIssue[]> {
       },
     }
   );
+
+  // Check rate limit headers
+  const remaining = parseInt(
+    response.headers.get("X-RateLimit-Remaining") ?? "-1",
+    10
+  );
+  const resetTimestamp = parseInt(
+    response.headers.get("X-RateLimit-Reset") ?? "0",
+    10
+  );
+
+  if (response.status === 403 && remaining === 0) {
+    throw new GitHubRateLimitError(remaining, resetTimestamp);
+  }
+
+  if (response.status === 403) {
+    const body = await response.text();
+    throw new Error(
+      `GitHub API forbidden (403): ${body}. You may need to set GITHUB_TOKEN.`
+    );
+  }
 
   if (!response.ok) {
     const body = await response.text();

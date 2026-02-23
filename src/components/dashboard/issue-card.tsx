@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import {
   Card,
@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { GitHubIssue, ScopingOutput, ExecutionOutput } from "@/lib/types";
 
 interface IssueCardProps {
@@ -22,30 +23,87 @@ interface IssueCardProps {
 type ScopingState =
   | { phase: "idle" }
   | { phase: "loading" }
-  | { phase: "polling"; sessionId: string; url: string }
+  | { phase: "polling"; sessionId: string; url: string; startedAt: number }
   | { phase: "done"; output: ScopingOutput; sessionUrl: string }
   | { phase: "error"; message: string };
 
 type ExecutionState =
   | { phase: "idle" }
   | { phase: "loading" }
-  | { phase: "polling"; sessionId: string; url: string }
+  | { phase: "polling"; sessionId: string; url: string; startedAt: number }
   | { phase: "done"; output: ExecutionOutput; sessionUrl: string }
   | { phase: "error"; message: string };
+
+const POLL_INTERVAL = 15000;
+const STALL_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Safely normalize structured_output which may be null, a string, or an object.
+ */
+function normalizeOutput(raw: unknown): Record<string, unknown> | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "object") return raw as Record<string, unknown>;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null) return parsed;
+    } catch {
+      // Not valid JSON
+    }
+  }
+  return null;
+}
+
+function parseScopingOutput(raw: unknown): ScopingOutput | null {
+  const obj = normalizeOutput(raw);
+  if (obj && "confidence_score" in obj) return obj as unknown as ScopingOutput;
+  return null;
+}
+
+function parseExecutionOutput(raw: unknown): ExecutionOutput | null {
+  const obj = normalizeOutput(raw);
+  if (obj && "pr_url" in obj) return obj as unknown as ExecutionOutput;
+  return null;
+}
 
 export function IssueCard({ issue, repo }: IssueCardProps) {
   const [scoping, setScoping] = useState<ScopingState>({ phase: "idle" });
   const [execution, setExecution] = useState<ExecutionState>({ phase: "idle" });
+  const [stalledScoping, setStalledScoping] = useState(false);
+  const [stalledExecution, setStalledExecution] = useState(false);
   const scopingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const executionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { toast } = useToast();
+
+  // Check for stalled sessions every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (scoping.phase === "polling") {
+        setStalledScoping(Date.now() - scoping.startedAt > STALL_THRESHOLD_MS);
+      }
+      if (execution.phase === "polling") {
+        setStalledExecution(Date.now() - execution.startedAt > STALL_THRESHOLD_MS);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [scoping, execution]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
+      if (executionTimerRef.current) clearInterval(executionTimerRef.current);
+    };
+  }, []);
 
   const pollSession = useCallback(
     (
       sessionId: string,
       onUpdate: (data: {
         status: string;
-        structured_output: ScopingOutput | ExecutionOutput | null;
+        structured_output: unknown;
         url: string;
+        created_at: string;
       }) => void,
       onError: (msg: string) => void
     ) => {
@@ -53,7 +111,7 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         try {
           const res = await fetch(`/api/devin/status/${sessionId}`);
           if (!res.ok) {
-            const err = await res.json();
+            const err = await res.json().catch(() => ({ error: "Unknown error" }));
             onError(err.error || "Failed to fetch session status");
             clearInterval(timer);
             return;
@@ -67,14 +125,25 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           onError("Network error while polling session");
           clearInterval(timer);
         }
-      }, 15000);
+      }, POLL_INTERVAL);
       return timer;
     },
     []
   );
 
   const handleScope = async () => {
+    // Prevent duplicate scoping sessions
+    if (scoping.phase === "loading" || scoping.phase === "polling") {
+      toast({
+        title: "Scoping already in progress",
+        description: `A scoping session for issue #${issue.number} is already running.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setScoping({ phase: "loading" });
+    setStalledScoping(false);
     try {
       const res = await fetch("/api/devin/scope", {
         method: "POST",
@@ -82,22 +151,27 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         body: JSON.stringify({ issue, repo }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ error: "Failed to start scoping" }));
         setScoping({ phase: "error", message: err.error || "Failed to start scoping" });
         return;
       }
       const { session_id, url } = await res.json();
-      setScoping({ phase: "polling", sessionId: session_id, url });
+      const now = Date.now();
+      setScoping({ phase: "polling", sessionId: session_id, url, startedAt: now });
 
       scopingTimerRef.current = pollSession(
         session_id,
         (data) => {
-          if (data.structured_output && "confidence_score" in data.structured_output) {
-            const output = data.structured_output as ScopingOutput;
+          const output = parseScopingOutput(data.structured_output);
+          if (output) {
             if (output.status === "scoped" || output.status === "needs_clarification" || data.status === "stopped") {
               setScoping({ phase: "done", output, sessionUrl: data.url });
               if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
             }
+          }
+          if (data.status === "stopped" && !output) {
+            setScoping({ phase: "error", message: "Session stopped without producing results" });
+            if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
           }
         },
         (msg) => setScoping({ phase: "error", message: msg })
@@ -109,9 +183,21 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
 
   const handleExecute = async () => {
     if (scoping.phase !== "done") return;
+
+    // Prevent duplicate execution sessions
+    if (execution.phase === "loading" || execution.phase === "polling") {
+      toast({
+        title: "Execution already in progress",
+        description: `An execution session for issue #${issue.number} is already running.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const actionPlan = scoping.output.action_plan;
 
     setExecution({ phase: "loading" });
+    setStalledExecution(false);
     try {
       const res = await fetch("/api/devin/execute", {
         method: "POST",
@@ -119,22 +205,27 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         body: JSON.stringify({ issue, repo, actionPlan }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ error: "Failed to start execution" }));
         setExecution({ phase: "error", message: err.error || "Failed to start execution" });
         return;
       }
       const { session_id, url } = await res.json();
-      setExecution({ phase: "polling", sessionId: session_id, url });
+      const now = Date.now();
+      setExecution({ phase: "polling", sessionId: session_id, url, startedAt: now });
 
       executionTimerRef.current = pollSession(
         session_id,
         (data) => {
-          if (data.structured_output && "pr_url" in data.structured_output) {
-            const output = data.structured_output as ExecutionOutput;
+          const output = parseExecutionOutput(data.structured_output);
+          if (output) {
             if (output.status === "pr_created" || output.status === "failed" || data.status === "stopped") {
               setExecution({ phase: "done", output, sessionUrl: data.url });
               if (executionTimerRef.current) clearInterval(executionTimerRef.current);
             }
+          }
+          if (data.status === "stopped" && !output) {
+            setExecution({ phase: "error", message: "Session stopped without producing results" });
+            if (executionTimerRef.current) clearInterval(executionTimerRef.current);
           }
         },
         (msg) => setExecution({ phase: "error", message: msg })
@@ -155,6 +246,9 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
     if (score >= 5) return "bg-yellow-100 border-yellow-300";
     return "bg-red-100 border-red-300";
   };
+
+  const isScopingBusy = scoping.phase === "loading" || scoping.phase === "polling";
+  const isExecutionBusy = execution.phase === "loading" || execution.phase === "polling";
 
   return (
     <Card className="flex flex-col">
@@ -306,14 +400,19 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           </div>
         )}
 
-        {/* Polling indicators */}
-        {(scoping.phase === "polling" || scoping.phase === "loading") && (
+        {/* Scoping polling indicator */}
+        {isScopingBusy && (
           <div className="space-y-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <p className="text-xs text-muted-foreground">
               {scoping.phase === "loading" ? "Starting scoping session..." : "Scoping in progress... polling every 15s"}
             </p>
+            {stalledScoping && (
+              <p className="text-xs font-medium text-yellow-600">
+                This session has been running for over 30 minutes and may be stalled.
+              </p>
+            )}
             {scoping.phase === "polling" && (
               <a
                 href={scoping.url}
@@ -327,13 +426,19 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           </div>
         )}
 
-        {(execution.phase === "polling" || execution.phase === "loading") && (
+        {/* Execution polling indicator */}
+        {isExecutionBusy && (
           <div className="space-y-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <p className="text-xs text-muted-foreground">
               {execution.phase === "loading" ? "Starting execution session..." : "Execution in progress... polling every 15s"}
             </p>
+            {stalledExecution && (
+              <p className="text-xs font-medium text-yellow-600">
+                This session has been running for over 30 minutes and may be stalled.
+              </p>
+            )}
             {execution.phase === "polling" && (
               <a
                 href={execution.url}
@@ -360,25 +465,29 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         <Button
           size="sm"
           onClick={handleScope}
-          disabled={scoping.phase !== "idle" && scoping.phase !== "error"}
+          disabled={isScopingBusy || scoping.phase === "done"}
         >
-          {scoping.phase === "loading" || scoping.phase === "polling"
-            ? "Scoping..."
-            : scoping.phase === "done"
-              ? "Scoped"
-              : "Scope with Devin"}
+          {scoping.phase === "loading"
+            ? "Starting..."
+            : scoping.phase === "polling"
+              ? "Scoping..."
+              : scoping.phase === "done"
+                ? "Scoped"
+                : "Scope with Devin"}
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={handleExecute}
-          disabled={scoping.phase !== "done" || (execution.phase !== "idle" && execution.phase !== "error")}
+          disabled={scoping.phase !== "done" || isExecutionBusy || execution.phase === "done"}
         >
-          {execution.phase === "loading" || execution.phase === "polling"
-            ? "Executing..."
-            : execution.phase === "done"
-              ? "Executed"
-              : "Execute This Plan"}
+          {execution.phase === "loading"
+            ? "Starting..."
+            : execution.phase === "polling"
+              ? "Executing..."
+              : execution.phase === "done"
+                ? "Executed"
+                : "Execute This Plan"}
         </Button>
       </CardFooter>
     </Card>

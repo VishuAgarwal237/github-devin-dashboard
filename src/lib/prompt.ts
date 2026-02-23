@@ -8,7 +8,12 @@ export function buildScopingPrompt(
     issue.labels.length > 0
       ? issue.labels.map((l) => l.name).join(", ")
       : "None";
-  const bodyStr = issue.body ?? "No description provided.";
+  const MAX_BODY_LENGTH = 8000;
+  const rawBody = issue.body ?? "No description provided.";
+  const bodyStr =
+    rawBody.length > MAX_BODY_LENGTH
+      ? rawBody.slice(0, MAX_BODY_LENGTH) + "\n\n[... body truncated at 8,000 characters ...]"
+      : rawBody;
 
   return `# Scoping Analysis for Issue #${issue.number}
 

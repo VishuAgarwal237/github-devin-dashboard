@@ -425,6 +425,7 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
 
             {scoping.output.blockers &&
               scoping.output.blockers.trim() !== "" &&
+              scoping.output.blockers.trim().toLowerCase() !== "none" &&
               !scoping.output.blockers.includes("<any blockers") &&
               !scoping.output.blockers.includes("Any blockers preventing") &&
               !scoping.output.blockers.includes("empty string if none") &&
@@ -450,28 +451,14 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         {execution.phase === "done" && (() => {
           const isFailed = execution.output.status === "failed";
           const hasPr = !!execution.output.pr_url;
-          const displayStatus = isFailed
-            ? "Failed"
-            : hasPr
-              ? "PR Created"
-              : "Completed";
           const borderColor = isFailed ? "border-red-200" : "border-green-200";
           const bgColor = isFailed ? "bg-red-50" : "bg-green-50";
-          const statusColor = isFailed ? "text-red-600" : "text-foreground";
 
           return (
             <div className={`space-y-2 rounded-md border ${borderColor} ${bgColor} p-3`}>
               <h4 className={`text-sm font-medium ${isFailed ? "text-red-700" : ""}`}>
                 {isFailed ? "Execution Failed" : "Execution Complete"}
               </h4>
-              <p className="text-sm text-muted-foreground">
-                Status: <span className={`font-medium ${statusColor}`}>{displayStatus}</span>
-                {execution.output.test_results !== "no_tests" &&
-                  !execution.output.test_results.includes("<") &&
-                  !execution.output.test_results.includes("|") && (
-                    <> &middot; Tests: <span className="font-medium">{execution.output.test_results}</span></>
-                  )}
-              </p>
               {hasPr && (
                 <a
                   href={execution.output.pr_url!}
@@ -482,12 +469,12 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
                   View Pull Request
                 </a>
               )}
-              {execution.output.notes &&
+              {isFailed && execution.output.notes &&
                 execution.output.notes.trim() !== "" &&
                 !execution.output.notes.includes("<any additional") &&
                 !execution.output.notes.includes("REPLACE WITH") &&
                 !execution.output.notes.includes("empty string if none") && (
-                <p className={`text-xs ${isFailed ? "text-red-600" : "text-muted-foreground"}`}>{execution.output.notes}</p>
+                <p className="text-xs text-red-600">{execution.output.notes}</p>
               )}
               <a
                 href={execution.sessionUrl}

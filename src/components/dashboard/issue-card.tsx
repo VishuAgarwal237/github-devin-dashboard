@@ -149,6 +149,7 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
       onUpdate: (data: {
         status: string;
         structured_output: unknown;
+        pull_request: { url: string } | null;
         url: string;
         created_at: string;
       }) => void,
@@ -279,18 +280,35 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
       executionTimerRef.current = pollSession(
         session_id,
         (data) => {
-          const output = parseExecutionOutput(data.structured_output);
+          let output = parseExecutionOutput(data.structured_output);
+          const sessionPrUrl = data.pull_request?.url ?? null;
 
           const sessionDone = ["blocked", "stopped", "finished", "expired"].includes(data.status);
 
+          // Backfill pr_url from session.pull_request if structured_output exists but has no pr_url
+          if (output && !output.pr_url && sessionPrUrl) {
+            output = { ...output, pr_url: sessionPrUrl };
+          }
+
+          // If no structured_output at all but session has a PR, create a fallback output
+          if (!output && sessionPrUrl) {
+            output = {
+              issue_number: issue.number,
+              status: "pr_created",
+              current_step: "PR created",
+              completed_steps: 0,
+              test_results: "no_tests",
+              pr_url: sessionPrUrl,
+              notes: "",
+            };
+          }
+
           if (output) {
-            // Show results when:
-            // 1. Session reached a terminal state
-            // 2. OR structured_output.status is "pr_created" / "failed"
             const executionFinished =
               sessionDone ||
               output.status === "pr_created" ||
-              output.status === "failed";
+              output.status === "failed" ||
+              !!output.pr_url;
 
             if (executionFinished) {
               setExecution({ phase: "done", output, sessionUrl: data.url ?? url });

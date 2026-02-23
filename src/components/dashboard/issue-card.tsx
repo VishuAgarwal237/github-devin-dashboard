@@ -56,13 +56,60 @@ function normalizeOutput(raw: unknown): Record<string, unknown> | null {
 
 function parseScopingOutput(raw: unknown): ScopingOutput | null {
   const obj = normalizeOutput(raw);
-  if (obj && "confidence_score" in obj) return obj as unknown as ScopingOutput;
+  if (!obj) return null;
+
+  // Accept the output if it looks like a scoping result.
+  // Check for several possible fields — Devin may not fill every one.
+  const hasScopingFields =
+    "confidence_score" in obj ||
+    "action_plan" in obj ||
+    "summary" in obj ||
+    "affected_files" in obj ||
+    ("status" in obj &&
+      typeof obj.status === "string" &&
+      ["scoping_in_progress", "scoped", "needs_clarification"].includes(obj.status as string));
+
+  if (hasScopingFields) {
+    // Fill in safe defaults for any missing fields
+    return {
+      issue_number: (obj.issue_number as number) ?? 0,
+      confidence_score: (obj.confidence_score as number) ?? 0,
+      estimated_effort: (obj.estimated_effort as ScopingOutput["estimated_effort"]) ?? "medium",
+      summary: (obj.summary as string) ?? "",
+      affected_files: Array.isArray(obj.affected_files) ? obj.affected_files as ScopingOutput["affected_files"] : [],
+      action_plan: Array.isArray(obj.action_plan) ? obj.action_plan as ScopingOutput["action_plan"] : [],
+      blockers: (obj.blockers as string) ?? "",
+      questions: (obj.questions as string) ?? "",
+      status: (obj.status as ScopingOutput["status"]) ?? "scoping_in_progress",
+    };
+  }
   return null;
 }
 
 function parseExecutionOutput(raw: unknown): ExecutionOutput | null {
   const obj = normalizeOutput(raw);
-  if (obj && "pr_url" in obj) return obj as unknown as ExecutionOutput;
+  if (!obj) return null;
+
+  // Accept if it looks like an execution result
+  const hasExecutionFields =
+    "pr_url" in obj ||
+    "current_step" in obj ||
+    "completed_steps" in obj ||
+    ("status" in obj &&
+      typeof obj.status === "string" &&
+      ["implementing", "testing", "pr_created", "failed"].includes(obj.status as string));
+
+  if (hasExecutionFields) {
+    return {
+      issue_number: (obj.issue_number as number) ?? 0,
+      status: (obj.status as ExecutionOutput["status"]) ?? "implementing",
+      current_step: (obj.current_step as string) ?? "",
+      completed_steps: (obj.completed_steps as number) ?? 0,
+      test_results: (obj.test_results as ExecutionOutput["test_results"]) ?? "no_tests",
+      pr_url: (obj.pr_url as string) ?? null,
+      notes: (obj.notes as string) ?? "",
+    };
+  }
   return null;
 }
 
@@ -163,14 +210,27 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         session_id,
         (data) => {
           const output = parseScopingOutput(data.structured_output);
+
+          // Transition to "done" when:
+          // 1. Session has stopped (Devin finished) and we have any output
+          // 2. Output status is explicitly "scoped" or "needs_clarification"
+          // 3. Session has stopped even without output (error)
           if (output) {
-            if (output.status === "scoped" || output.status === "needs_clarification" || data.status === "stopped") {
-              setScoping({ phase: "done", output, sessionUrl: data.url });
+            const scopingFinished =
+              data.status === "stopped" ||
+              output.status === "scoped" ||
+              output.status === "needs_clarification" ||
+              // Also accept if we have a confidence score and the session is done working
+              (output.confidence_score > 0 && data.status === "stopped");
+
+            if (scopingFinished) {
+              setScoping({ phase: "done", output, sessionUrl: data.url ?? url });
               if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
             }
           }
+
           if (data.status === "stopped" && !output) {
-            setScoping({ phase: "error", message: "Session stopped without producing results" });
+            setScoping({ phase: "error", message: "Session stopped without producing scoping results. Check the Devin session for details." });
             if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
           }
         },
@@ -217,14 +277,21 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         session_id,
         (data) => {
           const output = parseExecutionOutput(data.structured_output);
+
           if (output) {
-            if (output.status === "pr_created" || output.status === "failed" || data.status === "stopped") {
-              setExecution({ phase: "done", output, sessionUrl: data.url });
+            const executionFinished =
+              data.status === "stopped" ||
+              output.status === "pr_created" ||
+              output.status === "failed";
+
+            if (executionFinished) {
+              setExecution({ phase: "done", output, sessionUrl: data.url ?? url });
               if (executionTimerRef.current) clearInterval(executionTimerRef.current);
             }
           }
+
           if (data.status === "stopped" && !output) {
-            setExecution({ phase: "error", message: "Session stopped without producing results" });
+            setExecution({ phase: "error", message: "Session stopped without producing execution results. Check the Devin session for details." });
             if (executionTimerRef.current) clearInterval(executionTimerRef.current);
           }
         },

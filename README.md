@@ -4,7 +4,7 @@ A Next.js 14 dashboard that integrates GitHub issues with [Devin AI](https://dev
 
 ## Live Demo
 
-> **Deployed URL will be added after Vercel deployment.**
+**https://github-devin-dashboard.vercel.app**
 
 ## How It Works
 

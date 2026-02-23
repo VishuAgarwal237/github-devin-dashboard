@@ -84,6 +84,10 @@ Update your structured output as you work through the analysis. Use the followin
 \`\`\`
 
 Set \`status\` to \`"scoping_in_progress"\` while you are working, \`"scoped"\` when your analysis is complete, or \`"needs_clarification"\` if the issue is too ambiguous to scope confidently.
+
+---
+
+CRITICAL: You MUST update your structured output JSON (not a file, the structured output field) before finishing. Do not write your analysis to a file — use the structured output feature. If you do not set structured output, your analysis will be lost. Update structured output multiple times as you progress: once at the start with status "scoping_in_progress", and once at the end with status "scoped" and all fields filled in.
 `;
 }
 

@@ -39,10 +39,21 @@ export interface ExecutionOutput {
   notes: string;
 }
 
+export interface SessionMessage {
+  type: string;
+  event_id: string;
+  message: string;
+  timestamp: string;
+  origin?: string | null;
+  user_id?: string | null;
+  username?: string | null;
+}
+
 export interface DevinSession {
   session_id: string;
   status_enum: "working" | "blocked" | "stopped" | "finished" | "expired";
   structured_output: ScopingOutput | ExecutionOutput | null;
+  messages: SessionMessage[];
   url: string;
   title: string;
   pull_request: { url: string } | null;

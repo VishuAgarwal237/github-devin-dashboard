@@ -421,7 +421,11 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               </div>
             )}
 
-            {scoping.output.blockers && (
+            {scoping.output.blockers &&
+              scoping.output.blockers.trim() !== "" &&
+              !scoping.output.blockers.includes("<any blockers") &&
+              !scoping.output.blockers.includes("Any blockers preventing") &&
+              !scoping.output.blockers.includes("empty string if none") && (
               <div>
                 <h4 className="text-sm font-medium mb-1">Blockers</h4>
                 <p className="text-sm text-red-600">{scoping.output.blockers}</p>

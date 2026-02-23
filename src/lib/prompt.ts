@@ -67,18 +67,18 @@ Update your structured output as you work through the analysis. Use the followin
 \`\`\`json
 {
   "issue_number": ${issue.number},
-  "confidence_score": 7,
-  "estimated_effort": "medium",
-  "summary": "Brief summary of what needs to change and why.",
+  "confidence_score": "<number from 1-10>",
+  "estimated_effort": "<small | medium | large>",
+  "summary": "<your summary here — describe what needs to change and why>",
   "affected_files": [
-    { "path": "src/lib/example.ts", "reason": "Contains the function that needs to be updated" }
+    { "path": "<path/to/file.ts>", "reason": "<why this file is affected>" }
   ],
   "action_plan": [
-    { "step": 1, "description": "Update the validation logic in parseInput()", "risk": "low" },
-    { "step": 2, "description": "Add error handling for edge case X", "risk": "medium" }
+    { "step": 1, "description": "<what to do in this step>", "risk": "<low | medium | high>" },
+    { "step": 2, "description": "<what to do in this step>", "risk": "<low | medium | high>" }
   ],
-  "blockers": "Any blockers preventing implementation, or empty string if none.",
-  "questions": "Any clarifying questions for the issue author, or empty string if none.",
+  "blockers": "<any blockers, or empty string if none>",
+  "questions": "<any clarifying questions, or empty string if none>",
   "status": "scoping_in_progress"
 }
 \`\`\`
@@ -161,11 +161,11 @@ Update your structured output after completing each step. Use the following JSON
 {
   "issue_number": ${issue.number},
   "status": "implementing",
-  "current_step": "Working on step 1: cloning repo and creating branch",
+  "current_step": "<describe what you are currently doing>",
   "completed_steps": 0,
-  "test_results": "no_tests",
+  "test_results": "<pass | fail | no_tests>",
   "pr_url": null,
-  "notes": "Any additional context about progress or issues encountered."
+  "notes": "<any additional context, or empty string if none>"
 }
 \`\`\`
 

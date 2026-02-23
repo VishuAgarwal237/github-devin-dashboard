@@ -67,18 +67,18 @@ Update your structured output as you work through the analysis. Use the followin
 \`\`\`json
 {
   "issue_number": ${issue.number},
-  "confidence_score": "<number from 1-10>",
-  "estimated_effort": "<small | medium | large>",
-  "summary": "<your summary here — describe what needs to change and why>",
+  "confidence_score": 7,
+  "estimated_effort": "medium",
+  "summary": "REPLACE WITH YOUR ACTUAL SUMMARY",
   "affected_files": [
-    { "path": "<path/to/file.ts>", "reason": "<why this file is affected>" }
+    { "path": "REPLACE WITH ACTUAL FILE PATH", "reason": "REPLACE WITH ACTUAL REASON" }
   ],
   "action_plan": [
-    { "step": 1, "description": "<what to do in this step>", "risk": "<low | medium | high>" },
-    { "step": 2, "description": "<what to do in this step>", "risk": "<low | medium | high>" }
+    { "step": 1, "description": "REPLACE WITH ACTUAL STEP DESCRIPTION", "risk": "low" },
+    { "step": 2, "description": "REPLACE WITH ACTUAL STEP DESCRIPTION", "risk": "medium" }
   ],
-  "blockers": "<any blockers, or empty string if none>",
-  "questions": "<any clarifying questions, or empty string if none>",
+  "blockers": "",
+  "questions": "",
   "status": "scoping_in_progress"
 }
 \`\`\`
@@ -161,11 +161,11 @@ Update your structured output after completing each step. Use the following JSON
 {
   "issue_number": ${issue.number},
   "status": "implementing",
-  "current_step": "<describe what you are currently doing>",
+  "current_step": "Cloning repo and creating branch",
   "completed_steps": 0,
-  "test_results": "<pass | fail | no_tests>",
+  "test_results": "no_tests",
   "pr_url": null,
-  "notes": "<any additional context, or empty string if none>"
+  "notes": ""
 }
 \`\`\`
 

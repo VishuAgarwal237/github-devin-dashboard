@@ -385,7 +385,9 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               </span>
             </div>
 
-            {scoping.output.summary && (
+            {scoping.output.summary &&
+              scoping.output.summary.trim() !== "" &&
+              !scoping.output.summary.includes("REPLACE WITH") && (
               <p className="text-sm text-muted-foreground">{scoping.output.summary}</p>
             )}
 
@@ -425,7 +427,8 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               scoping.output.blockers.trim() !== "" &&
               !scoping.output.blockers.includes("<any blockers") &&
               !scoping.output.blockers.includes("Any blockers preventing") &&
-              !scoping.output.blockers.includes("empty string if none") && (
+              !scoping.output.blockers.includes("empty string if none") &&
+              !scoping.output.blockers.includes("REPLACE WITH") && (
               <div>
                 <h4 className="text-sm font-medium mb-1">Blockers</h4>
                 <p className="text-sm text-red-600">{scoping.output.blockers}</p>
@@ -449,9 +452,11 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
             <h4 className="text-sm font-medium">Execution Complete</h4>
             <p className="text-sm text-muted-foreground">
               Status: <span className="font-medium">{execution.output.status}</span>
-              {execution.output.test_results !== "no_tests" && (
-                <> &middot; Tests: <span className="font-medium">{execution.output.test_results}</span></>
-              )}
+                {execution.output.test_results !== "no_tests" &&
+                !execution.output.test_results.includes("<") &&
+                !execution.output.test_results.includes("|") && (
+                  <> &middot; Tests: <span className="font-medium">{execution.output.test_results}</span></>
+                )}
             </p>
             {execution.output.pr_url && (
               <a
@@ -463,7 +468,11 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
                 View Pull Request
               </a>
             )}
-            {execution.output.notes && (
+            {execution.output.notes &&
+              execution.output.notes.trim() !== "" &&
+              !execution.output.notes.includes("<any additional") &&
+              !execution.output.notes.includes("REPLACE WITH") &&
+              !execution.output.notes.includes("empty string if none") && (
               <p className="text-xs text-muted-foreground">{execution.output.notes}</p>
             )}
             <a

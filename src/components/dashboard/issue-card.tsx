@@ -447,44 +447,59 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         )}
 
         {/* Execution results */}
-        {execution.phase === "done" && (
-          <div className="space-y-2 rounded-md border border-green-200 bg-green-50 p-3">
-            <h4 className="text-sm font-medium">Execution Complete</h4>
-            <p className="text-sm text-muted-foreground">
-              Status: <span className="font-medium">{execution.output.status}</span>
+        {execution.phase === "done" && (() => {
+          const isFailed = execution.output.status === "failed";
+          const hasPr = !!execution.output.pr_url;
+          const displayStatus = isFailed
+            ? "Failed"
+            : hasPr
+              ? "PR Created"
+              : "Completed";
+          const borderColor = isFailed ? "border-red-200" : "border-green-200";
+          const bgColor = isFailed ? "bg-red-50" : "bg-green-50";
+          const statusColor = isFailed ? "text-red-600" : "text-foreground";
+
+          return (
+            <div className={`space-y-2 rounded-md border ${borderColor} ${bgColor} p-3`}>
+              <h4 className={`text-sm font-medium ${isFailed ? "text-red-700" : ""}`}>
+                {isFailed ? "Execution Failed" : "Execution Complete"}
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Status: <span className={`font-medium ${statusColor}`}>{displayStatus}</span>
                 {execution.output.test_results !== "no_tests" &&
-                !execution.output.test_results.includes("<") &&
-                !execution.output.test_results.includes("|") && (
-                  <> &middot; Tests: <span className="font-medium">{execution.output.test_results}</span></>
-                )}
-            </p>
-            {execution.output.pr_url && (
+                  !execution.output.test_results.includes("<") &&
+                  !execution.output.test_results.includes("|") && (
+                    <> &middot; Tests: <span className="font-medium">{execution.output.test_results}</span></>
+                  )}
+              </p>
+              {hasPr && (
+                <a
+                  href={execution.output.pr_url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                >
+                  View Pull Request
+                </a>
+              )}
+              {execution.output.notes &&
+                execution.output.notes.trim() !== "" &&
+                !execution.output.notes.includes("<any additional") &&
+                !execution.output.notes.includes("REPLACE WITH") &&
+                !execution.output.notes.includes("empty string if none") && (
+                <p className={`text-xs ${isFailed ? "text-red-600" : "text-muted-foreground"}`}>{execution.output.notes}</p>
+              )}
               <a
-                href={execution.output.pr_url}
+                href={execution.sessionUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                className="text-xs text-blue-600 hover:underline block"
               >
-                View Pull Request
+                View Devin session
               </a>
-            )}
-            {execution.output.notes &&
-              execution.output.notes.trim() !== "" &&
-              !execution.output.notes.includes("<any additional") &&
-              !execution.output.notes.includes("REPLACE WITH") &&
-              !execution.output.notes.includes("empty string if none") && (
-              <p className="text-xs text-muted-foreground">{execution.output.notes}</p>
-            )}
-            <a
-              href={execution.sessionUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline block"
-            >
-              View Devin session
-            </a>
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {/* Scoping polling indicator */}
         {isScopingBusy && (

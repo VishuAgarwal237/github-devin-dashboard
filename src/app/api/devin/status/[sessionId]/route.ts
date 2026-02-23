@@ -34,13 +34,19 @@ export async function GET(
   { params }: { params: { sessionId: string } }
 ) {
   const { sessionId } = params;
+  console.log(`[API /api/devin/status] GET sessionId=${sessionId}`);
 
   try {
     const session = await getSession(sessionId);
+    const parsedOutput = parseStructuredOutput(session.structured_output);
+
+    console.log(`[API /api/devin/status] session.status_enum=${session.status_enum}`);
+    console.log(`[API /api/devin/status] session.structured_output type=${typeof session.structured_output}, value=${JSON.stringify(session.structured_output)?.slice(0, 500)}`);
+    console.log(`[API /api/devin/status] parsedOutput=${parsedOutput ? JSON.stringify(parsedOutput).slice(0, 500) : "null"}`);
 
     return NextResponse.json({
       status: session.status_enum,
-      structured_output: parseStructuredOutput(session.structured_output),
+      structured_output: parsedOutput,
       pull_request: session.pull_request,
       url: session.url,
       title: session.title,
@@ -49,6 +55,7 @@ export async function GET(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
+    console.error(`[API /api/devin/status] Error for ${sessionId}: ${message}`);
 
     if (message.includes("404")) {
       return NextResponse.json(

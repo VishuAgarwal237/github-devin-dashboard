@@ -165,8 +165,10 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
           }
           const data = await res.json();
           onUpdate(data);
-          // Stop polling when session is no longer active
-          const terminalStatuses = ["stopped", "finished", "expired"];
+          // Stop polling when session is no longer active.
+          // "blocked" = Devin finished and is waiting for input (i.e. done for scoping).
+          // "stopped" / "finished" / "expired" are also terminal.
+          const terminalStatuses = ["blocked", "stopped", "finished", "expired"];
           if (terminalStatuses.includes(data.status)) {
             clearInterval(timer);
           }
@@ -213,13 +215,13 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         (data) => {
           const output = parseScopingOutput(data.structured_output);
 
-          // Transition to "done" when:
-          // 1. Session has stopped (Devin finished) and we have any output
-          // 2. Output status is explicitly "scoped" or "needs_clarification"
-          // 3. Session has stopped even without output (error)
-          const sessionDone = ["stopped", "finished", "expired"].includes(data.status);
+          const sessionDone = ["blocked", "stopped", "finished", "expired"].includes(data.status);
 
           if (output) {
+            // Show results when:
+            // 1. Session reached a terminal state (blocked/stopped/finished/expired)
+            // 2. OR structured_output.status is "scoped" / "needs_clarification"
+            //    (Devin may write results while session is still "working")
             const scopingFinished =
               sessionDone ||
               output.status === "scoped" ||
@@ -229,10 +231,9 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               setScoping({ phase: "done", output, sessionUrl: data.url ?? url });
               if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
             }
-          }
-
-          if (sessionDone && !output) {
-            setScoping({ phase: "error", message: "Session finished without producing scoping results. Check the Devin session for details." });
+          } else if (sessionDone) {
+            // Session ended but no parseable structured output
+            setScoping({ phase: "error", message: "Session ended without producing scoping results. Check the Devin session for details." });
             if (scopingTimerRef.current) clearInterval(scopingTimerRef.current);
           }
         },
@@ -280,9 +281,12 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
         (data) => {
           const output = parseExecutionOutput(data.structured_output);
 
-          const sessionDone = ["stopped", "finished", "expired"].includes(data.status);
+          const sessionDone = ["blocked", "stopped", "finished", "expired"].includes(data.status);
 
           if (output) {
+            // Show results when:
+            // 1. Session reached a terminal state
+            // 2. OR structured_output.status is "pr_created" / "failed"
             const executionFinished =
               sessionDone ||
               output.status === "pr_created" ||
@@ -292,10 +296,8 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               setExecution({ phase: "done", output, sessionUrl: data.url ?? url });
               if (executionTimerRef.current) clearInterval(executionTimerRef.current);
             }
-          }
-
-          if (sessionDone && !output) {
-            setExecution({ phase: "error", message: "Session finished without producing execution results. Check the Devin session for details." });
+          } else if (sessionDone) {
+            setExecution({ phase: "error", message: "Session ended without producing execution results. Check the Devin session for details." });
             if (executionTimerRef.current) clearInterval(executionTimerRef.current);
           }
         },

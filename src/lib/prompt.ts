@@ -62,19 +62,31 @@ This session is for analysis only.
 
 ## Structured Output
 
-Update your structured output as you work through the analysis. The JSON must have these fields:
+You MUST set your structured output to a JSON object with exactly this shape. Fill in every field with your own analysis — do NOT leave any field empty or use placeholder text.
 
-- **issue_number** (number): always ${issue.number}
-- **confidence_score** (number): your score from 1 to 10
-- **estimated_effort** (string): one of "small", "medium", or "large"
-- **summary** (string): a paragraph describing what needs to change and why — write this yourself based on your analysis
-- **affected_files** (array): each entry has "path" (the real file path you found in the repo) and "reason" (why it needs changes)
-- **action_plan** (array): each entry has "step" (number), "description" (a specific actionable instruction you wrote), and "risk" ("low", "medium", or "high")
-- **blockers** (string): any blockers you identified, or "" if none
-- **questions** (string): any clarifying questions, or "" if none
-- **status** (string): "scoping_in_progress" while working, "scoped" when done, "needs_clarification" if too ambiguous
+\`\`\`json
+{
+  "issue_number": ${issue.number},
+  "confidence_score": 0,
+  "estimated_effort": "medium",
+  "summary": "",
+  "affected_files": [],
+  "action_plan": [],
+  "blockers": "",
+  "questions": "",
+  "status": "scoping_in_progress"
+}
+\`\`\`
 
-Every string value must be your own original analysis — do not use placeholder text. Set \`status\` to \`"scoping_in_progress"\` initially and update to \`"scoped"\` when your analysis is complete.
+Field instructions:
+- **confidence_score**: set to your score from 1 to 10 based on the rubric above
+- **estimated_effort**: set to "small", "medium", or "large"
+- **summary**: write a paragraph describing what needs to change and why
+- **affected_files**: add one entry per file: \`{"path": "src/real/file.ts", "reason": "why this file needs changes"}\`
+- **action_plan**: add one entry per step: \`{"step": 1, "description": "what to do", "risk": "low"}\` — risk is "low", "medium", or "high"
+- **blockers**: describe any blockers, or leave as ""
+- **questions**: any clarifying questions, or leave as ""
+- **status**: start with "scoping_in_progress", change to "scoped" when done, or "needs_clarification" if too ambiguous
 
 ---
 

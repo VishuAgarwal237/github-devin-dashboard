@@ -62,28 +62,19 @@ This session is for analysis only.
 
 ## Structured Output
 
-Update your structured output as you work through the analysis. Use the following JSON shape:
+Update your structured output as you work through the analysis. The JSON must have these fields:
 
-\`\`\`json
-{
-  "issue_number": ${issue.number},
-  "confidence_score": 7,
-  "estimated_effort": "medium",
-  "summary": "REPLACE WITH YOUR ACTUAL SUMMARY",
-  "affected_files": [
-    { "path": "REPLACE WITH ACTUAL FILE PATH", "reason": "REPLACE WITH ACTUAL REASON" }
-  ],
-  "action_plan": [
-    { "step": 1, "description": "REPLACE WITH ACTUAL STEP DESCRIPTION", "risk": "low" },
-    { "step": 2, "description": "REPLACE WITH ACTUAL STEP DESCRIPTION", "risk": "medium" }
-  ],
-  "blockers": "",
-  "questions": "",
-  "status": "scoping_in_progress"
-}
-\`\`\`
+- **issue_number** (number): always ${issue.number}
+- **confidence_score** (number): your score from 1 to 10
+- **estimated_effort** (string): one of "small", "medium", or "large"
+- **summary** (string): a paragraph describing what needs to change and why — write this yourself based on your analysis
+- **affected_files** (array): each entry has "path" (the real file path you found in the repo) and "reason" (why it needs changes)
+- **action_plan** (array): each entry has "step" (number), "description" (a specific actionable instruction you wrote), and "risk" ("low", "medium", or "high")
+- **blockers** (string): any blockers you identified, or "" if none
+- **questions** (string): any clarifying questions, or "" if none
+- **status** (string): "scoping_in_progress" while working, "scoped" when done, "needs_clarification" if too ambiguous
 
-Set \`status\` to \`"scoping_in_progress"\` while you are working, \`"scoped"\` when your analysis is complete, or \`"needs_clarification"\` if the issue is too ambiguous to scope confidently.
+Every string value must be your own original analysis — do not use placeholder text. Set \`status\` to \`"scoping_in_progress"\` initially and update to \`"scoped"\` when your analysis is complete.
 
 ---
 

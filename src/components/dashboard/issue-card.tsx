@@ -409,11 +409,15 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               <p className="text-sm text-muted-foreground">{scoping.output.summary}</p>
             )}
 
-            {scoping.output.action_plan.length > 0 && (
+            {scoping.output.action_plan.filter(
+              (s) => !s.description.includes("REPLACE WITH") && !s.description.includes("<what to do")
+            ).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium mb-1">Action Plan</h4>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                  {scoping.output.action_plan.map((step) => (
+                  {scoping.output.action_plan
+                    .filter((s) => !s.description.includes("REPLACE WITH") && !s.description.includes("<what to do"))
+                    .map((step) => (
                     <li key={step.step}>
                       {step.description}
                       <Badge variant="outline" className="ml-1.5 text-xs">
@@ -425,11 +429,15 @@ export function IssueCard({ issue, repo }: IssueCardProps) {
               </div>
             )}
 
-            {scoping.output.affected_files.length > 0 && (
+            {scoping.output.affected_files.filter(
+              (f) => !f.path.includes("REPLACE WITH") && !f.path.includes("<path/to/")
+            ).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium mb-1">Affected Files</h4>
                 <ul className="space-y-0.5 text-sm text-muted-foreground">
-                  {scoping.output.affected_files.map((f) => (
+                  {scoping.output.affected_files
+                    .filter((f) => !f.path.includes("REPLACE WITH") && !f.path.includes("<path/to/"))
+                    .map((f) => (
                     <li key={f.path}>
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">
                         {f.path}

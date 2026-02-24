@@ -62,35 +62,21 @@ This session is for analysis only.
 
 ## Structured Output
 
-You MUST set your structured output to a JSON object with exactly this shape. Fill in every field with your own analysis — do NOT leave any field empty or use placeholder text.
+After completing your analysis, update structured output with a JSON object containing these fields:
 
-\`\`\`json
-{
-  "issue_number": ${issue.number},
-  "confidence_score": 0,
-  "estimated_effort": "medium",
-  "summary": "",
-  "affected_files": [],
-  "action_plan": [],
-  "blockers": "",
-  "questions": "",
-  "status": "scoping_in_progress"
-}
-\`\`\`
+- **issue_number** (integer, required): always ${issue.number}
+- **confidence_score** (integer 1-10, required): your score based on the rubric above
+- **estimated_effort** (string, required): one of "small", "medium", or "large"
+- **summary** (string, required): a paragraph describing what needs to change and why
+- **affected_files** (array, required): each entry is \`{"path": "the/real/file.ts", "reason": "why it needs changes"}\`
+- **action_plan** (array, required): each entry is \`{"step": 1, "description": "specific actionable instruction", "risk": "low"}\` — risk is "low", "medium", or "high"
+- **blockers** (string): any blockers you identified, or "" if none
+- **questions** (string): any clarifying questions, or "" if none
+- **status** (string, required): set to "scoped" when your analysis is complete, or "needs_clarification" if the issue is too ambiguous
 
-Field instructions:
-- **confidence_score**: set to your score from 1 to 10 based on the rubric above
-- **estimated_effort**: set to "small", "medium", or "large"
-- **summary**: write a paragraph describing what needs to change and why
-- **affected_files**: add one entry per file: \`{"path": "src/real/file.ts", "reason": "why this file needs changes"}\`
-- **action_plan**: add one entry per step: \`{"step": 1, "description": "what to do", "risk": "low"}\` — risk is "low", "medium", or "high"
-- **blockers**: describe any blockers, or leave as ""
-- **questions**: any clarifying questions, or leave as ""
-- **status**: start with "scoping_in_progress", change to "scoped" when done, or "needs_clarification" if too ambiguous
+Do NOT update structured output until you have actually completed the analysis. A confidence_score of 0 means the analysis was not done. You must clone the repo, explore the code, and form your own conclusions before writing structured output.
 
----
-
-CRITICAL: You MUST update your structured output JSON (not a file, the structured output field) before finishing. Do not write your analysis to a file — use the structured output feature. If you do not set structured output, your analysis will be lost. Update structured output multiple times as you progress: once at the start with status "scoping_in_progress", and once at the end with status "scoped" and all fields filled in.
+CRITICAL: Write structured output using the structured output feature (not to a file). If you do not set structured output, your analysis will be lost.
 `;
 }
 
